@@ -4,19 +4,12 @@ import com.ai.ocsg.process.conf.TableConfigruation;
 import com.ai.ocsg.process.core.Upload;
 import com.ai.ocsg.process.core.UploadFactory;
 import com.ai.ocsg.process.utils.PropertiesUtil;
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.FileItemIterator;
+import org.apache.commons.fileupload.FileItemStream;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.http.impl.auth.UnsupportedDigestAlgorithmException;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -25,12 +18,9 @@ import org.springframework.web.servlet.mvc.multiaction.MultiActionController;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
-import java.util.UUID;
 
 /**
  * Created by wangkai8 on 16/8/22.
@@ -52,43 +42,55 @@ public class UploadController extends MultiActionController {
 
     @RequestMapping(method = RequestMethod.POST)
     public void upload(HttpServletRequest req, HttpServletResponse resp) {
-        DiskFileItemFactory factory = new DiskFileItemFactory();
-        ServletFileUpload servletFileUpload = new ServletFileUpload(factory);
+        ServletFileUpload servletFileUpload = new ServletFileUpload();
+
         resp.setCharacterEncoding("utf-8");
 
         ServletOutputStream out = null;
 
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
         try {
+            FileItemIterator it = servletFileUpload.getItemIterator(req);
             out = resp.getOutputStream();
 
-            List<FileItem> list = (List<FileItem>) servletFileUpload.parseRequest(req);
-            for(FileItem item : list) {
-                if(item.isFormField()) {
-                    req.setAttribute(item.getFieldName(), item.getString());
+            while(it.hasNext()) {
+                FileItemStream itemStream = it.next();
+                InputStream in = itemStream.openStream();
+                try {
+                    if (itemStream.isFormField()) {
+                        bos.reset();
+                        IOUtils.copy(in, bos);
+                        req.setAttribute(itemStream.getFieldName(), new String(bos.toByteArray()));
+                    } else {
+                        long fileSize = getFileSize(itemStream.getFieldName(), req);
+                        if (fileSize == 0) {
+                            continue;
+                        }
+
+                        Upload upload = UploadFactory.getInstance(fileSize, THRESTHOLD);
+
+                        String returnPath = upload.upload(TableConfigruation.getConf(), in, itemStream.getName(), fileSize, req, resp);
+
+                        out.write(returnPath.getBytes());
+
+                    }
+                } finally {
+                    if(in != null) {
+                        in.close();
+                    }
                 }
             }
 
-            for(FileItem item : list) {
-                if(item.isFormField()) {
-                    continue;
-                }
-
-                long fileSize = getFileSize(item.getFieldName(), req);
-
-                if(fileSize == 0) {
-                    continue;
-                }
-
-                Upload upload = UploadFactory.getInstance(fileSize, THRESTHOLD);
-
-                String returnPath = upload.upload(TableConfigruation.getConf(), item.getInputStream(), item.getName(), fileSize, req, resp);
-
-                out.write(returnPath.getBytes());
-            }
         } catch (Exception e) {
             LOG.error("", e);
             throw new RuntimeException(e);
         } finally {
+            try {
+                bos.close();
+            } catch (IOException e) {
+
+            }
             if(out != null) {
                 try {
                     out.close();
