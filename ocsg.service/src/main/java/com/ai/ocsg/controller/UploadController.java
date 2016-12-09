@@ -1,9 +1,12 @@
 package com.ai.ocsg.controller;
 
+import com.ai.ocsg.client.FileInfo;
+import com.ai.ocsg.client.UploadResponse;
 import com.ai.ocsg.process.conf.TableConfigruation;
-import com.ai.ocsg.process.core.Upload;
+import com.ai.ocsg.process.core.upload.Upload;
 import com.ai.ocsg.process.core.UploadFactory;
 import com.ai.ocsg.process.utils.PropertiesUtil;
+import com.google.gson.Gson;
 import org.apache.commons.fileupload.FileItemIterator;
 import org.apache.commons.fileupload.FileItemStream;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
@@ -21,6 +24,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by wangkai8 on 16/8/22.
@@ -50,6 +55,10 @@ public class UploadController extends MultiActionController {
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
+        List<FileInfo> uploadedFiles = new ArrayList<FileInfo>();
+
+        Gson gson = new Gson();
+
         try {
             FileItemIterator it = servletFileUpload.getItemIterator(req);
             out = resp.getOutputStream();
@@ -70,9 +79,9 @@ public class UploadController extends MultiActionController {
 
                         Upload upload = UploadFactory.getInstance(fileSize, THRESTHOLD);
 
-                        String returnPath = upload.upload(TableConfigruation.getConf(), in, itemStream.getName(), fileSize, req, resp);
+                        String returnPath = upload.upload(TableConfigruation.getConf(), in, itemStream.getName(), fileSize);
 
-                        out.write(returnPath.getBytes());
+                        uploadedFiles.add(new FileInfo(itemStream.getName(), fileSize, returnPath));
 
                     }
                 } finally {
@@ -81,10 +90,20 @@ public class UploadController extends MultiActionController {
                     }
                 }
             }
+            byte[] returnContent = gson.toJson(new UploadResponse(UploadResponse.OK, uploadedFiles)).getBytes();
+            out.write(returnContent);
 
-        } catch (Exception e) {
+
+        } catch (Throwable e) {
             LOG.error("", e);
-            throw new RuntimeException(e);
+            if(out != null) {
+                try {
+                    byte[] returnContent = gson.toJson(new UploadResponse(UploadResponse.FAILED, e.getMessage())).getBytes();
+                    out.write(returnContent);
+                    out.close();
+                } catch (IOException ex) {
+                }
+            }
         } finally {
             try {
                 bos.close();

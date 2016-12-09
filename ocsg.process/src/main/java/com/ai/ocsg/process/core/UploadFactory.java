@@ -1,5 +1,9 @@
 package com.ai.ocsg.process.core;
 
+import com.ai.ocsg.process.core.upload.HBaseUpload;
+import com.ai.ocsg.process.core.upload.HdfsUpload;
+import com.ai.ocsg.process.core.upload.Upload;
+
 /**
  * Created by wangkai8 on 16/8/25.
  */

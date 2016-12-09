@@ -1,8 +1,14 @@
 package com.ai.ocsg.controller;
 
+import com.ai.ocsg.client.FileInfo;
 import com.ai.ocsg.process.conf.TableConfigruation;
+import com.ai.ocsg.process.core.download.Download;
+import com.ai.ocsg.process.core.DownloadFactory;
+
+import com.ai.ocsg.process.utils.DateUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -30,6 +36,7 @@ public class DownloadController {
 
     public static final Log LOG = LogFactory.getLog(DownloadController.class);
 
+
     @RequestMapping(method = RequestMethod.GET)
     public void downloadWithGet(HttpServletRequest req, HttpServletResponse resp) {
         download(req, resp);
@@ -38,6 +45,44 @@ public class DownloadController {
 
     @RequestMapping(method = RequestMethod.POST)
     public void download(HttpServletRequest req, HttpServletResponse resp) {
+        resp.setContentType("application/x-msdownload");
+        String path = req.getParameter("filePath");
+        ServletOutputStream out;
+        try {
+            out = resp.getOutputStream();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        Configuration conf = TableConfigruation.getConf();
+        long start = DateUtil.now();
+        try {
+            Download download = DownloadFactory.getDownload(conf, path);
+
+            FileInfo fileInfo = download.getFileInfo();
+//            resp.addHeader("Content-Disposition", "attachment; filename=\"" + URLEncoder.encode(fileInfo.getFileName(), "utf-8") + "\"");
+            resp.addHeader("Content-Disposition", "attachment; filename=\"" + new String(fileInfo.getFileName().getBytes("utf-8"), "ISO-8859-1") + "\"");
+            resp.addHeader("Content-Length", String.valueOf(fileInfo.getFileSize()));
+
+            //begin download, write data to response out socket ...
+            download.write(out);
+
+            LOG.info("file: " + path + " download complete, fileSize: " + fileInfo.getFileSize() + ", token: " + DateUtil.diff(start) + "ms");
+
+            //file download complete, close the resources
+            download.close();
+
+            out.close();
+
+        } catch (Throwable e) {
+            LOG.error("download exception", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+
+
+
+    public void download2(HttpServletRequest req, HttpServletResponse resp) {
         resp.setContentType("application/x-msdownload");
         String path = req.getParameter("filePath");
         ServletOutputStream out = null;

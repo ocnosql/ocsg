@@ -63,6 +63,39 @@ public class PropertiesUtil {
         return props.getProperty(key, defaultValue);
     }
 
+    public static int getInt(String resourceName, String key,
+                             int defaultValue) {
+        String property = getProperty(resourceName, key);
+        if(property == null || property.equals("")) {
+            return defaultValue;
+        } else {
+            return Integer.parseInt(property);
+        }
+    }
+
+    public static long getLong(String resourceName, String key,
+                             long defaultValue) {
+        String property = getProperty(resourceName, key);
+        if(property == null || property.equals("")) {
+            return defaultValue;
+        } else {
+            return Long.parseLong(property);
+        }
+    }
+
+    public static boolean getBoolean(String resourceName, String key) {
+        return Boolean.valueOf(getProperty(resourceName, key));
+    }
+
+    public static boolean getBoolean(String resourceName, String key, boolean defaultValue) {
+        String property = getProperty(resourceName, key);
+        if(property == null || property.equals("")) {
+            return defaultValue;
+        } else {
+            return Boolean.valueOf(property);
+        }
+    }
+
     public static String getProperty(String resourceName, String key) {
         return getProperty(resourceName, key, "");
     }

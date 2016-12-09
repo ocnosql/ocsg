@@ -1,4 +1,4 @@
-package com.ai.ocsg.process.core;
+package com.ai.ocsg.process.core.upload;
 
 import com.ai.ocsg.process.Constants;
 import com.ai.ocsg.process.utils.DateUtil;
@@ -11,8 +11,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
@@ -29,7 +27,7 @@ public class HdfsUpload implements Upload {
 
 
     @Override
-    public String upload(Configuration conf, InputStream in, String fileName, long fileSize, HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    public String upload(Configuration conf, InputStream in, String fileName, long fileSize) throws IOException {
         FileSystem fs = FileSystem.get(conf);
 
         Path path = new Path(getStoreDir() + "/" + getStoreFileName(fileName));
@@ -37,7 +35,9 @@ public class HdfsUpload implements Upload {
         FSDataOutputStream fsout = fs.create(path);
 
         long start = System.currentTimeMillis();
+
         IOUtils.copyBytes(in, fsout, conf);
+
         LOG.info("upload file: " + fileName + " success, token: " + (System.currentTimeMillis() - start) + "ms, path: " + path.toString());
 
         return "hdfs_" + path.toString();

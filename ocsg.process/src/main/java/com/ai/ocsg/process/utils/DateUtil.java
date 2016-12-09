@@ -14,4 +14,12 @@ public class DateUtil {
         SimpleDateFormat format = new SimpleDateFormat(PARTTERN);
         return format.format(new Date());
     }
+
+    public static long now() {
+        return System.currentTimeMillis();
+    }
+
+    public static long diff(long startTime) {
+        return now() - startTime;
+    }
 }

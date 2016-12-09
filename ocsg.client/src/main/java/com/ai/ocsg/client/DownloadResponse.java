@@ -5,13 +5,16 @@ import java.io.InputStream;
 /**
  * Created by wangkai8 on 16/8/23.
  */
-public class Response {
+public class DownloadResponse {
+
+
 
     private String fileName;
 
     private InputStream in;
 
-    public Response(String fileName, InputStream in) {
+
+    public DownloadResponse(String fileName, InputStream in) {
         this.fileName = fileName;
         this.in = in;
     }

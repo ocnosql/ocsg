@@ -26,9 +26,9 @@ public class TableConfigruation {
     }
 
     public static Connection getConnection() throws IOException {
-        if(conn == null) {
+        if(conn == null || conn.isClosed()) {
             synchronized (conf) {
-                if(conn == null) {
+                if(conn == null || conn.isClosed()) {
                     conn = ConnectionFactory.createConnection(conf);
                 }
             }

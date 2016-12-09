@@ -16,28 +16,32 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.CharsetUtils;
 import org.apache.http.util.EntityUtils;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
 import java.net.URLDecoder;
-import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Created by wangkai8 on 16/8/23.
  */
-public class OCSGClient {
+public class Client {
 
-    public static final Log LOG = LogFactory.getLog(OCSGClient.class);
+    public static final Log LOG = LogFactory.getLog(Client.class);
+
+    public static final String SUFFIX = "_length";
+
+    public static final String DEFAULT_CHARSET = "UTF-8";
 
     private String uploadUrl;
     private String downloadUrl;
 
-    public OCSGClient() {
+    public Client() {
 
     }
 
-    public OCSGClient(String uploadUrl, String downloadUrl) {
+    public Client(String uploadUrl, String downloadUrl) {
         this.uploadUrl = uploadUrl;
         this.downloadUrl = downloadUrl;
     }
@@ -58,76 +62,72 @@ public class OCSGClient {
         this.downloadUrl = downloadUrl;
     }
 
-    public String upload(InputStream in, long fileSize, String fileName) throws IOException {
+
+    /**
+     *
+     * @param in
+     * @param fileSize
+     * @param fileName
+     * @return
+     * @throws IOException
+     */
+    public UploadResponse upload(InputStream in, long fileSize, String fileName) throws IOException {
         CloseableHttpClient httpClient = HttpClients.createDefault();
 
         try {
-            // 要上传的文件的路径
-//            String filePath = new String("/Users/wangkai8/Downloads/末日孤舰.The.Last.Ship.S03E03.中英字幕.HDTVrip.1024X576.mp4");
-            // 把一个普通参数和文件上传给下面这个地址 是一个servlet
+
             HttpPost httpPost = new HttpPost(uploadUrl);
-            // 把文件转换成流对象FileBody
-//            File file = new File(filePath);
-//            FileBody bin = new FileBody(file);
             InputStreamBody inputStreamBody = new InputStreamBody(in, fileName);
-            StringBody myfileLength = new StringBody(
-                    fileSize + "", ContentType.create(
-                    "text/plain", Consts.UTF_8));
-            //以浏览器兼容模式运行，防止文件名乱码。
+
+            StringBody fileLength = new StringBody(Long.toString(fileSize), ContentType.create("text/plain", Consts.UTF_8));
+
             HttpEntity reqEntity = MultipartEntityBuilder.create().setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
-                    .addPart("myfile", inputStreamBody)
-                    .addPart("myfile_length", myfileLength)
-                    .setCharset(CharsetUtils.get("UTF-8")).build();
+                    .addPart(fileName + SUFFIX, fileLength)
+                    .addPart(fileName, inputStreamBody)
+                    .setCharset(CharsetUtils.get(DEFAULT_CHARSET)).build();
 
             httpPost.setEntity(reqEntity);
 
-//            System.out.println("发起请求的页面地址 " + httpPost.getRequestLine());
-            // 发起请求 并返回请求的响应
             CloseableHttpResponse response = httpClient.execute(httpPost);
             try {
-//                System.out.println("----------------------------------------");
-                // 打印响应状态
-//                System.out.println(response.getStatusLine());
-                // 获取响应对象
-                HttpEntity resEntity = response.getEntity();
-                if (resEntity != null) {
-//                    // 打印响应长度
-//                    System.out.println("Response content length: "
-//                            + resEntity.getContentLength());
-//                    // 打印响应内容
-//                    System.out.println(EntityUtils.toString(resEntity,
-//                            Charset.forName("UTF-8")));
-                    return EntityUtils.toString(resEntity, Charset.forName("UTF-8"));
+                int statusCode = response.getStatusLine().getStatusCode();
+                if(statusCode != 200) {
+                    throw new IOException(response.getStatusLine().toString() + ", http code: " + statusCode);
                 }
+                HttpEntity resEntity = response.getEntity();
+                ObjectMapper om = new ObjectMapper();
+                UploadResponse uploadResponse =  om.readValue(EntityUtils.toByteArray(resEntity), UploadResponse.class);
                 // 销毁
                 EntityUtils.consume(resEntity);
+                return uploadResponse;
             } finally {
                 response.close();
             }
         } finally {
             httpClient.close();
         }
-        return null;
     }
 
 
 
-    public Response download(String filePath) throws IOException {
-        CloseableHttpClient client = HttpClients.createDefault();
-        HttpGet httpget = new HttpGet(downloadUrl + "?filePath=" + filePath);
+    public DownloadResponse download(String filePath) throws IOException {
 
-        HttpResponse response = client.execute(httpget);
+        CloseableHttpClient client = HttpClients.createDefault();
+
+        HttpGet get = new HttpGet(downloadUrl + "?filePath=" + filePath);
+
+        HttpResponse response = client.execute(get);
 
         String fileName = getFileName(response);
 
         HttpEntity entity = response.getEntity();
         InputStream is = entity.getContent();
 
-        return new Response(fileName, is);
+        return new DownloadResponse(fileName, is);
     }
 
 
-    public static String getFileName(HttpResponse response) {
+    public static String getFileName(HttpResponse response) throws IOException {
         Header contentHeader = response.getFirstHeader("Content-Disposition");
         String filename = null;
         if (contentHeader != null) {
@@ -136,10 +136,9 @@ public class OCSGClient {
                 NameValuePair param = values[0].getParameterByName("filename");
                 if (param != null) {
                     try {
-                        filename = new String(param.getValue().toString().getBytes(), "utf-8");
-                        filename = URLDecoder.decode(param.getValue(), "utf-8");
+                        filename = new String(param.getValue().toString().getBytes("ISO-8859-1"), DEFAULT_CHARSET);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        throw new IOException("can't get file name");
                     }
                 }
             }
@@ -147,10 +146,17 @@ public class OCSGClient {
         return filename;
     }
 
-    // upload http://localhost:8080/upload /Users/wangkai8/maintain/phone.txt
-    // download http://localhost:8080/download hbase_upload_201608_e8490730-d6c6-4ee8-97b9-fc60528ec051 /Users/wangkai8
-    // upload http://localhost:8080/upload <localFilePath>
-    // download http://localhost:8080/download <filePath> <localStoreFilePath>
+
+
+    /**
+     * usage:
+     * upload http://localhost:8080/upload <localFilePath>
+     * download http://localhost:8080/download <filePath> <localStoreFilePath>
+     *
+     * for example:
+     * upload http://localhost:8082/ocsg/upload /Users/wangkai8/hbase简介.pdf
+     * download http://localhost:8082/ocsg/download hbase_upload_201612_8983b4e9-cabd-4e49-a856-aca918b7acd3 /Users/wangkai8
+     **/
     public static void main(String[] args) throws IOException {
 
         if(args.length < 3) {
@@ -158,7 +164,7 @@ public class OCSGClient {
             System.exit(1);
         }
 
-        OCSGClient client = new OCSGClient();
+        Client client = new Client();
 
         if(args[0].equals("upload")) {
             client.setUploadUrl(args[1]);
@@ -174,9 +180,13 @@ public class OCSGClient {
 
             FileInputStream in = new FileInputStream(localFile);
 
-            String storePath = client.upload(in, localFile.length(), fileName);
+            UploadResponse response = client.upload(in, localFile.length(), fileName);
+            if(response.getRetCode() == UploadResponse.OK) {
+                LOG.info("upload file: " + filePath + " success! store path: " + response.getData().get(0).getPath());
+            } else {
+                LOG.error("upload exception", new IOException(response.getErrorMsg()));
+            }
 
-            LOG.info("upload file: " + filePath + " success! store path: " + storePath);
 
         } else if(args[0].equals("download")) {
             if(args.length < 4) {
@@ -184,7 +194,7 @@ public class OCSGClient {
                 System.exit(1);
             }
             client.setDownloadUrl(args[1]);
-            Response response = client.download(args[2]);
+            DownloadResponse response = client.download(args[2]);
             String fileName = response.getFileName();
             File localFile = new File(args[3] + "/" + fileName);
             while(localFile.exists()) {
@@ -223,5 +233,4 @@ public class OCSGClient {
         }
         return newFilePrefix;
     }
-
 }

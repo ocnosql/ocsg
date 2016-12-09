@@ -1,4 +1,4 @@
-package com.ai.ocsg.process.core;
+package com.ai.ocsg.process.core.upload;
 
 import com.ai.ocsg.process.Constants;
 import com.ai.ocsg.process.conf.TableConfigruation;
@@ -9,10 +9,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.http.impl.auth.UnsupportedDigestAlgorithmException;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,14 +23,19 @@ public class HBaseUpload implements Upload {
 
     public static final Log LOG = LogFactory.getLog(HBaseUpload.class);
 
-    public static final int HBASE_SPLIT_SIZE = Integer.parseInt(PropertiesUtil.getProperty(RESOURCE_NAME, Constants.HBASE_SPLIT_SIZE, 1024 * 1024 + ""));
+    public int HBASE_SPLIT_SIZE = Integer.parseInt(PropertiesUtil.getProperty(RESOURCE_NAME, Constants.HBASE_SPLIT_SIZE, 1024 * 1024 + ""));
 
     public static final String TABLE_PREFIX = PropertiesUtil.getProperty(RESOURCE_NAME, Constants.HBASE_UPLOAD_TABLE_PREFIX);
 
+    public HBaseUpload() {
+        if(HBASE_SPLIT_SIZE <= 0) {
+            HBASE_SPLIT_SIZE = 1024 * 1024;
+        }
+    }
+
 
     @Override
-    public String upload(Configuration conf, InputStream in, String fileName, long fileSize,
-                         HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    public String upload(Configuration conf, InputStream in, String fileName, long fileSize) throws IOException {
 
         BufferedInputStream bis = new BufferedInputStream(in);
         ByteArrayOutputStream bos = new ByteArrayOutputStream(HBASE_SPLIT_SIZE);
@@ -54,7 +56,7 @@ public class HBaseUpload implements Upload {
             readCount += count;
             if(readCount != 0 && readCount % HBASE_SPLIT_SIZE == 0) {
                 Put put = new Put(uuid.getBytes());
-                put.addColumn(Constants.DATA_FAMILY, getColumnName(fieldIndex).getBytes(), bos.toByteArray());
+                put.addColumn(Constants.DATA_FAMILY, getColumnName(fileSize, fieldIndex).getBytes(), bos.toByteArray());
                 table.put(put);
                 bos.reset();
                 fieldIndex ++;
@@ -62,7 +64,7 @@ public class HBaseUpload implements Upload {
         }
         if(bos.size() > 0) {
             Put put = new Put(uuid.getBytes());
-            put.addColumn(Constants.DATA_FAMILY, getColumnName(fieldIndex).getBytes(), bos.toByteArray());
+            put.addColumn(Constants.DATA_FAMILY, getColumnName(fileSize, fieldIndex).getBytes(), bos.toByteArray());
             table.put(put);
             bos.reset();
         }
@@ -79,14 +81,14 @@ public class HBaseUpload implements Upload {
     }
 
 
-    public String getColumnName(int index) {
-
-        if(index < 10) {
-            return "00" + index;
-        } else if(index < 100) {
-            return "0" + index;
-        } else {
-            throw new UnsupportedDigestAlgorithmException();
+    public String getColumnName(long fileSize, int index) {
+        long splitNum = fileSize / HBASE_SPLIT_SIZE == 0 ? fileSize / HBASE_SPLIT_SIZE : fileSize / HBASE_SPLIT_SIZE + 1;
+        String indexStr = Integer.toString(index);
+        String splitNumStr = Long.toString(splitNum);
+        for(int i = indexStr.length(); i < splitNumStr.length(); i ++) {
+            indexStr = "0" + indexStr;
         }
+        return indexStr;
     }
+
 }

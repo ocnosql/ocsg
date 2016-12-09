@@ -20,14 +20,13 @@
 </head>
 <body>
 <h2>Hello World!</h2>
-<form action="/upload" method="post" enctype="multipart/form-data" onsubmit="getFileSize('myfile')">
+<form action="<%=request.getContextPath()%>/upload" method="post" enctype="multipart/form-data" onsubmit="getFileSize('myfile')">
     <input type="text" name="m" value="aaa"/><br />
     <input type="text" name="txt1" value="bbb"/><br />
     <input id="myfile_length" type="hidden" name="myfile_length" value=""/>
     <input id="myfile" type="file" name="myfile" /><br />
     <%--<input type="file" name="myImg" /><br />--%>
     <input type="submit" value="提交" />
-
 </form>
 </body>
 </html>
