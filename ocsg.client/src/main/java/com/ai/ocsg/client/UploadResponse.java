@@ -8,37 +8,43 @@ import java.util.List;
  */
 public class UploadResponse {
 
-    private boolean isSuccess = true;
+    public static final int OK = 0;
+    public static final int FAILED = 1;
+
+    private int retCode;
 
     private List<FileInfo> data = new ArrayList<FileInfo>();
 
     private String errorMsg;
 
-    public UploadResponse(boolean isSuccess, List data) {
-        this.isSuccess = isSuccess();
+    public UploadResponse() {
+
+    }
+
+    public UploadResponse(int retCode, List data) {
+        this.retCode = retCode;
         this.data = data;
     }
 
-    public UploadResponse(String isSuccess, List data, String errorMsg) {
-        this.isSuccess = isSuccess();
+    public UploadResponse(int retCode, List data, String errorMsg) {
+        this.retCode = retCode;
         this.data = data;
         this.errorMsg = errorMsg;
     }
 
 
-    public UploadResponse(boolean isSuccess, String errorMsg) {
-        this.isSuccess = isSuccess;
+    public UploadResponse(int retCode, String errorMsg) {
+        this.retCode = retCode;
         this.errorMsg = errorMsg;
     }
 
-    public boolean isSuccess() {
-        return isSuccess;
+    public int getRetCode() {
+        return retCode;
     }
 
-    public void setSuccess(boolean isSuccess) {
-        this.isSuccess = isSuccess;
+    public void setRetCode(int retCode) {
+        this.retCode = retCode;
     }
-
 
     public List<FileInfo> getData() {
         return data;

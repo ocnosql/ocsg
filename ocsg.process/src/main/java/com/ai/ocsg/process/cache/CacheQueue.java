@@ -8,11 +8,45 @@ import java.util.concurrent.BlockingQueue;
  */
 public class CacheQueue {
 
-    private static BlockingQueue queue = new ArrayBlockingQueue(10000);
+    private static BlockingQueue<CacheExecutor> executorQueue = new ArrayBlockingQueue<CacheExecutor>(10000);
+    private static CacheQueue queue;
+    private int handlerNum = 1;
 
-    public static void addExecuter(CacheExecutor executor) {
-        queue.offer(executor);
+    private CacheQueue() {
+        for(int i = 0; i < handlerNum; i ++) {
+            new CacheHandler().start();
+        }
     }
 
-    class
+
+    public static CacheQueue getInstance() {
+        if(queue == null) {
+            synchronized (CacheQueue.class) {
+                if(queue == null) {
+                    queue = new CacheQueue();
+                }
+            }
+        }
+        return queue;
+    }
+
+
+    public boolean addExecuter(CacheExecutor executor) {
+        return executorQueue.offer(executor);
+    }
+
+
+    class CacheHandler extends Thread {
+
+        public void run() {
+            while(true) {
+                try {
+                    CacheExecutor cacheExecutor = executorQueue.take();
+                    cacheExecutor.execute();
+                } catch (InterruptedException e) {
+
+                }
+            }
+        }
+    }
 }

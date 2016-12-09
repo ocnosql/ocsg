@@ -38,7 +38,7 @@ public class HdfsDownload implements Download {
     @Override
     public FileInfo getFileInfo() throws IOException {
         FileStatus fileStatus = fs.getFileStatus(new Path(realPath));
-        return new FileInfo(fileName, fileStatus.getLen() + "", realPath);
+        return new FileInfo(fileName, fileStatus.getLen(), realPath);
     }
 
     @Override
