@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 
 /**
  * Created by wangkai8 on 16/8/23.
+ * 线程安全，多个线程可以共享
  */
 public class Client {
 
@@ -34,32 +35,9 @@ public class Client {
 
     public static final String DEFAULT_CHARSET = "UTF-8";
 
-    private String uploadUrl;
-    private String downloadUrl;
 
     public Client() {
 
-    }
-
-    public Client(String uploadUrl, String downloadUrl) {
-        this.uploadUrl = uploadUrl;
-        this.downloadUrl = downloadUrl;
-    }
-
-    public String getUploadUrl() {
-        return uploadUrl;
-    }
-
-    public void setUploadUrl(String uploadUrl) {
-        this.uploadUrl = uploadUrl;
-    }
-
-    public String getDownloadUrl() {
-        return downloadUrl;
-    }
-
-    public void setDownloadUrl(String downloadUrl) {
-        this.downloadUrl = downloadUrl;
     }
 
 
@@ -71,7 +49,7 @@ public class Client {
      * @return
      * @throws IOException
      */
-    public UploadResponse upload(InputStream in, long fileSize, String fileName) throws IOException {
+    public UploadResponse upload(String uploadUrl, InputStream in, long fileSize, String fileName) throws IOException {
         CloseableHttpClient httpClient = HttpClients.createDefault();
 
         try {
@@ -110,7 +88,7 @@ public class Client {
 
 
 
-    public DownloadResponse download(String filePath) throws IOException {
+    public DownloadResponse download(String downloadUrl, String filePath) throws IOException {
 
         CloseableHttpClient client = HttpClients.createDefault();
 
@@ -167,7 +145,6 @@ public class Client {
         Client client = new Client();
 
         if(args[0].equals("upload")) {
-            client.setUploadUrl(args[1]);
             String filePath = args[2];
             File localFile = new File(filePath);
 
@@ -180,7 +157,7 @@ public class Client {
 
             FileInputStream in = new FileInputStream(localFile);
 
-            UploadResponse response = client.upload(in, localFile.length(), fileName);
+            UploadResponse response = client.upload(args[1], in, localFile.length(), fileName);
             if(response.getRetCode() == UploadResponse.OK) {
                 LOG.info("upload file: " + filePath + " success! store path: " + response.getData().get(0).getPath());
             } else {
@@ -193,8 +170,7 @@ public class Client {
                 printUsage();
                 System.exit(1);
             }
-            client.setDownloadUrl(args[1]);
-            DownloadResponse response = client.download(args[2]);
+            DownloadResponse response = client.download(args[1], args[2]);
             String fileName = response.getFileName();
             File localFile = new File(args[3] + "/" + fileName);
             while(localFile.exists()) {
