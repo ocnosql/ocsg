@@ -2,8 +2,8 @@ there is two ways to upload/download files from ocsg.
 
 1. java API usage:
 
-    Configuration conf = TableConfigruation.getConf();
-    OutputStream out = ...
+    Configuration conf = TableConfigruation.getConf();<br>
+    OutputStream out = ...<br>
     Download download = DownloadFactory.getDownload(conf, path);
     download.write(out);
     download.close();
