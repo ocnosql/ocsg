@@ -48,7 +48,7 @@ public class ImageController {
             download = DownloadFactory.getDownload(conf, path);
 
             //begin download, write data to response out socket ...
-            if("dict".equals(opt)) {
+            if("dict".equals(opt) && (download instanceof HBaseDownload)) {
                 ((HBaseDownload) download).writeDirect(out);
             } else {
                 download.write(out);
