@@ -26,13 +26,13 @@ public class ImageController {
     public static final Log LOG = LogFactory.getLog(ImageController.class);
 
     @RequestMapping(method = RequestMethod.GET)
-    public void uploadWithGet(HttpServletRequest req, HttpServletResponse resp) {
-        upload(req, resp);
+    public void downloadWithGet(HttpServletRequest req, HttpServletResponse resp) {
+        download(req, resp);
     }
 
 
     @RequestMapping(method = RequestMethod.POST)
-    public void upload(HttpServletRequest req, HttpServletResponse resp) {
+    public void download(HttpServletRequest req, HttpServletResponse resp) {
         resp.setContentType("image/jpeg");
         String path = req.getParameter("filePath");
         String opt = req.getParameter("opt");
